@@ -106,8 +106,10 @@ webpackJsonp([1],[
 				_underscore2.default.times(_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL, function (x) {
 					_underscore2.default.times(_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL, function (y) {
 						counter++;
+						var class_name = html[x + '-' + y];
+						if (class_name == _Config2.default.EMPTY) class_name = '';
 
-						stage += '<td class="' + html[x + '-' + y] + '" data-id="' + x + '-' + y + '" data-index="' + counter + '">' + x + '-' + y + '</td>';
+						stage += '<td class="' + class_name + '" data-id="' + x + '-' + y + '" data-index="' + counter + '">' + x + '-' + y + '</td>';
 
 						if (counter % _Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL == 0) {
 							stage += '</tr><tr>';
@@ -146,7 +148,6 @@ webpackJsonp([1],[
 						}
 					}
 				}
-				console.log('target_siege_ids: ' + target_siege_ids);
 
 				var is_changed = false; // ひっくり返すマスがあるか
 				var enemy_name = this.player.getNextPlayer(this.player.current_player);
@@ -156,7 +157,6 @@ webpackJsonp([1],[
 						var direction_ids = []; // その方角のid(配列)
 						direction_ids = _this2.getDirectionIds(id, direction);
 						direction_ids.unshift(id);
-						console.log(direction_ids);
 
 						// 方角のidに自分マスがあったらひっくり返す
 						var turn_over_ids = [];
@@ -178,7 +178,6 @@ webpackJsonp([1],[
 						});
 					}
 				});
-				console.log('--------------------');
 
 				if (is_changed) {
 					this.render($target);
@@ -189,6 +188,8 @@ webpackJsonp([1],[
 			value: function render($target) {
 				(0, _jquery2.default)('td').removeClass();
 				_underscore2.default.each(this.stage, function (value, key) {
+					if (value == _Config2.default.EMPTY) return false;
+
 					(0, _jquery2.default)('[data-id="' + key + '"]').addClass(value);
 				});
 

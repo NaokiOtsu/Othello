@@ -37,8 +37,10 @@ class Stage {
 		_.times(Config.STAGE_CELL_NUM_TO_HORIZONTAL, (x) => {
 			_.times(Config.STAGE_CELL_NUM_TO_HORIZONTAL, (y) => {
 				counter++;
+				var class_name = html[x +'-'+ y];
+				if (class_name == Config.EMPTY) class_name = '';
 				
-				stage += '<td class="'+ html[x +'-'+ y] +'" data-id="'+ x +'-'+ y +'" data-index="'+ counter +'">'+ x +'-'+ y +'</td>'
+				stage += '<td class="'+ class_name +'" data-id="'+ x +'-'+ y +'" data-index="'+ counter +'">'+ x +'-'+ y +'</td>'
 				
 				if (counter % Config.STAGE_CELL_NUM_TO_HORIZONTAL == 0) {
 					stage += '</tr><tr>'
@@ -74,7 +76,6 @@ class Stage {
 				}
 			}
 		}
-		console.log('target_siege_ids: '+target_siege_ids)
 		
 		var is_changed = false; // ひっくり返すマスがあるか
 		var enemy_name = this.player.getNextPlayer(this.player.current_player); 
@@ -84,7 +85,6 @@ class Stage {
 				var direction_ids = []; // その方角のid(配列)
 				direction_ids = this.getDirectionIds(id, direction);
 				direction_ids.unshift(id)
-				console.log(direction_ids)
 				
 				// 方角のidに自分マスがあったらひっくり返す
 				var turn_over_ids = [];
@@ -107,7 +107,6 @@ class Stage {
 				});
 			}
 		});
-		console.log('--------------------')
 		
 		if (is_changed) {
 			this.render($target);
@@ -117,6 +116,8 @@ class Stage {
 	render($target) {
 		$('td').removeClass();
 		_.each(this.stage, (value, key) => {
+			if (value == Config.EMPTY) return false;
+			 
 			$('[data-id="'+ key +'"]').addClass(value);
 		});
 		
