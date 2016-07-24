@@ -55,20 +55,27 @@ webpackJsonp([1],[
 
 	var _underscore2 = _interopRequireDefault(_underscore);
 
+	var _Config = __webpack_require__(7);
+
+	var _Config2 = _interopRequireDefault(_Config);
+
+	var _Player = __webpack_require__(8);
+
+	var _Player2 = _interopRequireDefault(_Player);
+
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	var STAGE_CELL_NUM_TO_HORIZONTAL = 4;
-	var EMPTY = 'empty';
-	var WHITE = 'white';
-	var BLACK = 'black';
 
 	var Stage = function () {
 		function Stage() {
 			_classCallCheck(this, Stage);
 
+			this.$container = (0, _jquery2.default)('.container');
+
 			this.stage = {};
+
+			this.player = new _Player2.default();
 		}
 
 		_createClass(Stage, [{
@@ -76,16 +83,16 @@ webpackJsonp([1],[
 			value: function createHtmlInitialStage() {
 				var _this = this;
 
-				_underscore2.default.times(STAGE_CELL_NUM_TO_HORIZONTAL, function (x) {
-					_underscore2.default.times(STAGE_CELL_NUM_TO_HORIZONTAL, function (y) {
-						_this.stage[[x + '-' + y]] = EMPTY;
+				_underscore2.default.times(_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL, function (x) {
+					_underscore2.default.times(_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL, function (y) {
+						_this.stage[[x + '-' + y]] = _Config2.default.EMPTY;
 					});
 				});
 
-				this.stage[['1-1']] = WHITE;
-				this.stage[['2-1']] = BLACK;
-				this.stage[['1-2']] = BLACK;
-				this.stage[['2-2']] = WHITE;
+				this.stage[['3-3']] = _Config2.default.WHITE;
+				this.stage[['3-4']] = _Config2.default.BLACK;
+				this.stage[['4-3']] = _Config2.default.BLACK;
+				this.stage[['4-4']] = _Config2.default.WHITE;
 
 				return this.stage;
 			}
@@ -96,40 +103,26 @@ webpackJsonp([1],[
 				var counter = 0;
 
 				stage += '<table><tr>';
-				_underscore2.default.times(STAGE_CELL_NUM_TO_HORIZONTAL, function (x) {
-					_underscore2.default.times(STAGE_CELL_NUM_TO_HORIZONTAL, function (y) {
+				_underscore2.default.times(_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL, function (x) {
+					_underscore2.default.times(_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL, function (y) {
 						counter++;
 
-						stage += '<td class="' + html[x + '-' + y] + '" data-id="' + x + '-' + y + '" data-index="' + counter + '"></td>';
+						stage += '<td class="' + html[x + '-' + y] + '" data-id="' + x + '-' + y + '" data-index="' + counter + '">' + x + '-' + y + '</td>';
 
-						if (counter % 4 == 0) {
+						if (counter % _Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL == 0) {
 							stage += '</tr><tr>';
 						}
 					});
 				});
 				stage += '</tr></table>';
 
-				(0, _jquery2.default)('.container').html(stage);
-			}
-		}, {
-			key: 'renderCanClickStage',
-			value: function renderCanClickStage(player) {
-				var _this2 = this;
-
-				var arr = [];
-
-				_underscore2.default.times(STAGE_CELL_NUM_TO_HORIZONTAL, function (x) {
-					_underscore2.default.times(STAGE_CELL_NUM_TO_HORIZONTAL, function (y) {
-						arr.push(_this2.canClick(x, y, player));
-					});
-				});
-
-				console.log(arr);
+				this.player.renderPlayer();
+				this.$container.append(stage);
 			}
 		}, {
 			key: 'click',
 			value: function click(event) {
-				var _this3 = this;
+				var _this2 = this;
 
 				var $target = (0, _jquery2.default)(event.target);
 				var cell_id = $target.data('id') + '';
@@ -138,53 +131,74 @@ webpackJsonp([1],[
 				var cell_x = Number(cell_id_split[2]);
 				var cell_y = Number(cell_id_split[0]);
 
-				if (this.stage[cell_id] != EMPTY) {
+				if (this.stage[cell_id] != _Config2.default.EMPTY) {
 					return false;
 				}
 
-				var arr = [];
+				var target_siege_ids = []; // クリックしたマスの包囲マス
 				for (var x = -1; x < 2; x++) {
 					for (var y = -1; y < 2; y++) {
 						var num_x = cell_x + x;
 						var num_y = cell_y + y;
 
-						if (num_x >= 0 && num_x <= 3 && num_y >= 0 && num_y <= 3) {
-							arr.push(num_y + '-' + num_x);
+						if (num_x >= 0 && num_x < _Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL && num_y >= 0 && num_y < _Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL) {
+							target_siege_ids.push(num_y + '-' + num_x);
 						}
 					}
 				}
+				console.log('target_siege_ids: ' + target_siege_ids);
 
-				var is_changed = false;
-				_underscore2.default.map(arr, function (id) {
-					if (_this3.stage[id] == BLACK) {
-						var hougaku = _this3.getHougaku(cell_id, id);
-						var array = []; // その方角のid(配列)
-						array = _this3.getHougakuIds(id, hougaku);
-						array.unshift(id);
+				var is_changed = false; // ひっくり返すマスがあるか
+				var enemy_name = this.player.getNextPlayer(this.player.current_player);
+				_underscore2.default.map(target_siege_ids, function (id) {
+					if (_this2.stage[id] == enemy_name) {
+						var direction = _this2.getDirection(cell_id, id); // どの方角か
+						var direction_ids = []; // その方角のid(配列)
+						direction_ids = _this2.getDirectionIds(id, direction);
+						direction_ids.unshift(id);
+						console.log(direction_ids);
 
-						_underscore2.default.each(array, function (id, index) {
-							if (_this3.stage[id] == WHITE) {
+						// 方角のidに自分マスがあったらひっくり返す
+						var turn_over_ids = [];
+						_underscore2.default.some(direction_ids, function (id, index) {
+							if (_this2.stage[id] == _Config2.default.EMPTY) return true; // 空マスが見つかったらひっくり返さない
+
+							if (_this2.stage[id] == _this2.player.current_player) {
 								is_changed = true;
-								var id = array[index - 1];
-								_this3.stage[id] = WHITE;
+
+								// 囲われた相手マスを自分マスに
+								_underscore2.default.times(index, function (index) {
+									var id = direction_ids[index];
+									_this2.stage[id] = _this2.player.current_player;
+								});
+								_this2.stage[cell_id] = _this2.player.current_player; // クリックした箇所を自分マスに
+
+								return true; // 自分マスがあったらそこでループ終了
 							}
 						});
-
-						console.log(_this3.stage);
 					}
 				});
+				console.log('--------------------');
 
 				if (is_changed) {
-					$target.addClass('white');
+					this.render($target);
 				}
 			}
 		}, {
 			key: 'render',
-			value: function render() {}
+			value: function render($target) {
+				(0, _jquery2.default)('td').removeClass();
+				_underscore2.default.each(this.stage, function (value, key) {
+					(0, _jquery2.default)('[data-id="' + key + '"]').addClass(value);
+				});
+
+				this.player.current_player = this.player.getNextPlayer(this.player.current_player);
+				this.player.renderPlayer();
+			}
 		}, {
-			key: 'getHougaku',
-			value: function getHougaku(cell_id, id) {
-				var hougaku = '';
+			key: 'getDirection',
+			value: function getDirection(cell_id, id) {
+				var direction = '';
 				var start_x = Number(cell_id.split('')[2]);
 				var start_y = Number(cell_id.split('')[0]);
 				var goal_x = Number(id.split('')[2]);
@@ -194,64 +208,58 @@ webpackJsonp([1],[
 					case -1:
 						switch (start_y - goal_y) {
 							case -1:
-								hougaku = 'TOP_LEFT';
+								direction = 'TOP_LEFT';
 								break;
 							case 0:
-								hougaku = 'CENTER_LEFT';
+								direction = 'CENTER_LEFT';
 								break;
 							case 1:
-								hougaku = 'BOTTOM_LEFT';
+								direction = 'BOTTOM_LEFT';
 								break;
 						}
 						break;
 					case 0:
 						switch (start_y - goal_y) {
 							case -1:
-								hougaku = 'TOP_CENTER';
+								direction = 'TOP_CENTER';
 								break;
 							case 0:
-								hougaku = 'CENTER_CENTER';
+								direction = 'CENTER_CENTER';
 								break;
 							case 1:
-								hougaku = 'BOTTOM_CENTER';
+								direction = 'BOTTOM_CENTER';
 								break;
 						}
 						break;
 					case 1:
 						switch (start_y - goal_y) {
 							case -1:
-								hougaku = 'TOP_RIGHT';
+								direction = 'TOP_RIGHT';
 								break;
 							case 0:
-								hougaku = 'CENTER_RIGHT';
+								direction = 'CENTER_RIGHT';
 								break;
 							case 1:
-								hougaku = 'BOTTOM_RIGHT';
+								direction = 'BOTTOM_RIGHT';
 								break;
 						}
 						break;
 				}
 
-				return hougaku;
+				return direction;
 			}
 		}, {
-			key: 'getHougakuIds',
-			value: function getHougakuIds(id, hougaku) {
+			key: 'getDirectionIds',
+			value: function getDirectionIds(id, direction) {
 				var arr = [];
 				var id_x = Number(id.split('')[2]);
 				var id_y = Number(id.split('')[0]);
 
-				function getId(num) {
-					while (id_x == 3) {
-						id_x += 1;
-					}
-				}
-
 				var counter = 0;
-				switch (hougaku) {
+				switch (direction) {
 					case 'TOP_LEFT':
-						if (3 - id_x && 3 - id_y) {
-							counter = Math.min(3 - id_x, 3 - id_y);
+						if (_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_x && _Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_y) {
+							counter = Math.min(_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_x, _Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_y);
 						}
 						_underscore2.default.times(counter, function () {
 							id_x += 1;
@@ -260,8 +268,8 @@ webpackJsonp([1],[
 						});
 						break;
 					case 'CENTER_LEFT':
-						if (3 - id_x) {
-							counter = 3 - id_x;
+						if (_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_x) {
+							counter = _Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_x;
 						}
 						_underscore2.default.times(counter, function () {
 							id_x += 1;
@@ -269,8 +277,8 @@ webpackJsonp([1],[
 						});
 						break;
 					case 'BOTTOM_LEFT':
-						if (3 - id_x && id_y) {
-							counter = Math.min(3 - id_x, id_y);
+						if (_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_x && id_y) {
+							counter = Math.min(_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_x, id_y);
 						}
 						_underscore2.default.times(counter, function () {
 							id_x += 1;
@@ -279,8 +287,8 @@ webpackJsonp([1],[
 						});
 						break;
 					case 'TOP_CENTER':
-						if (3 - id_y) {
-							counter = 3 - id_y;
+						if (_Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_y) {
+							counter = _Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_y;
 						}
 						_underscore2.default.times(counter, function () {
 							id_y += 1;
@@ -300,8 +308,8 @@ webpackJsonp([1],[
 						});
 						break;
 					case 'TOP_RIGHT':
-						if (id_x && 3 - id_y) {
-							counter = Math.min(id_x, 3 - id_y);
+						if (id_x && _Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_y) {
+							counter = Math.min(id_x, _Config2.default.STAGE_CELL_NUM_TO_HORIZONTAL - 1 - id_y);
 						}
 						_underscore2.default.times(counter, function () {
 							id_x -= 1;
@@ -338,6 +346,71 @@ webpackJsonp([1],[
 	}();
 
 	module.exports = Stage;
+
+/***/ },
+/* 7 */
+/***/ function(module, exports) {
+
+	'use strict';
+
+	var Config = {
+		STAGE_CELL_NUM_TO_HORIZONTAL: 8, // 横のマス目
+		EMPTY: 'empty', // 空マス
+		WHITE: 'white', // 白マス
+		BLACK: 'black' // 黒マス
+	};
+
+	module.exports = Config;
+
+/***/ },
+/* 8 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _jquery = __webpack_require__(1);
+
+	var _jquery2 = _interopRequireDefault(_jquery);
+
+	var _underscore = __webpack_require__(3);
+
+	var _underscore2 = _interopRequireDefault(_underscore);
+
+	var _Config = __webpack_require__(7);
+
+	var _Config2 = _interopRequireDefault(_Config);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var Player = function () {
+		function Player() {
+			_classCallCheck(this, Player);
+
+			this.$player = (0, _jquery2.default)('.player');
+
+			this.current_player = _Config2.default.WHITE;
+		}
+
+		_createClass(Player, [{
+			key: 'renderPlayer',
+			value: function renderPlayer() {
+				this.$player.html(this.current_player);
+			}
+		}, {
+			key: 'getNextPlayer',
+			value: function getNextPlayer(player) {
+				return player == _Config2.default.WHITE ? _Config2.default.BLACK : _Config2.default.WHITE;
+			}
+		}]);
+
+		return Player;
+	}();
+
+	module.exports = Player;
 
 /***/ }
 ]);

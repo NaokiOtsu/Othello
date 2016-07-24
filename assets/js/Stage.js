@@ -2,28 +2,29 @@
 
 import $ from 'jquery';
 import _ from 'underscore';
-
-const STAGE_CELL_NUM_TO_HORIZONTAL = 4;
-const EMPTY = 'empty';
-const WHITE = 'white';
-const BLACK = 'black';
+import Config from 'Config';
+import Player from 'Player';
 
 class Stage {
 	constructor() {
+		this.$container = $('.container');
+		
 		this.stage = {};
+		
+		this.player = new Player();
 	}
 	
 	createHtmlInitialStage() {
-		_.times(STAGE_CELL_NUM_TO_HORIZONTAL, (x) => {
-			_.times(STAGE_CELL_NUM_TO_HORIZONTAL, (y) => {
-				this.stage[[x +'-'+ y]] = EMPTY;
+		_.times(Config.STAGE_CELL_NUM_TO_HORIZONTAL, (x) => {
+			_.times(Config.STAGE_CELL_NUM_TO_HORIZONTAL, (y) => {
+				this.stage[[x +'-'+ y]] = Config.EMPTY;
 			});
 		});
 		
-		this.stage[['1-1']] = WHITE;
-		this.stage[['2-1']] = BLACK;
-		this.stage[['1-2']] = BLACK;
-		this.stage[['2-2']] = WHITE;
+		this.stage[['3-3']] = Config.WHITE;
+		this.stage[['3-4']] = Config.BLACK;
+		this.stage[['4-3']] = Config.BLACK;
+		this.stage[['4-4']] = Config.WHITE;
 		
 		return this.stage;
 	}
@@ -33,33 +34,21 @@ class Stage {
 		var counter = 0;
 		
 		stage += '<table><tr>';
-		_.times(STAGE_CELL_NUM_TO_HORIZONTAL, (x) => {
-			_.times(STAGE_CELL_NUM_TO_HORIZONTAL, (y) => {
+		_.times(Config.STAGE_CELL_NUM_TO_HORIZONTAL, (x) => {
+			_.times(Config.STAGE_CELL_NUM_TO_HORIZONTAL, (y) => {
 				counter++;
 				
-				stage += '<td class="'+ html[x +'-'+ y] +'" data-id="'+ x +'-'+ y +'" data-index="'+ counter +'"></td>'
+				stage += '<td class="'+ html[x +'-'+ y] +'" data-id="'+ x +'-'+ y +'" data-index="'+ counter +'">'+ x +'-'+ y +'</td>'
 				
-				if (counter % 4 == 0) {
+				if (counter % Config.STAGE_CELL_NUM_TO_HORIZONTAL == 0) {
 					stage += '</tr><tr>'
 				}
 			});
 		});
 		stage += '</tr></table>'
 		
-		$('.container').html(stage);
-	}
-	
-	renderCanClickStage(player) {
-		var arr = [];
-		
-		_.times(STAGE_CELL_NUM_TO_HORIZONTAL, (x) => {
-			_.times(STAGE_CELL_NUM_TO_HORIZONTAL, (y) => {
-				arr.push(this.canClick(x, y, player));
-			});
-		});
-		
-		console.log(arr)
-		
+		this.player.renderPlayer();
+		this.$container.append(stage);
 	}
 	
 	click(event) {
@@ -70,53 +59,73 @@ class Stage {
 		var cell_x = Number(cell_id_split[2]);
 		var cell_y = Number(cell_id_split[0]);
 		
-		if (this.stage[cell_id] != EMPTY) {
+		if (this.stage[cell_id] != Config.EMPTY) {
 			return false;
 		}
 		
-		var arr = [];
+		var target_siege_ids = []; // クリックしたマスの包囲マス
 		for (var x = -1; x < 2; x++) {
 			for (var y = -1; y < 2; y++) {
 				var num_x = cell_x + x;
 				var num_y = cell_y + y;
 				
-				if (num_x >= 0 && num_x <= 3 && num_y >= 0 && num_y <= 3) {
-					arr.push(num_y +'-'+ num_x);
+				if (num_x >= 0 && num_x < Config.STAGE_CELL_NUM_TO_HORIZONTAL && num_y >= 0 && num_y < Config.STAGE_CELL_NUM_TO_HORIZONTAL) {
+					target_siege_ids.push(num_y +'-'+ num_x);
 				}
 			}
 		}
+		console.log('target_siege_ids: '+target_siege_ids)
 		
-		var is_changed = false;
-		_.map(arr, (id) => {
-			if (this.stage[id] == BLACK) {
-				var hougaku = this.getHougaku(cell_id, id);
-				var array = []; // その方角のid(配列)
-				array = this.getHougakuIds(id, hougaku);
-				array.unshift(id)
+		var is_changed = false; // ひっくり返すマスがあるか
+		var enemy_name = this.player.getNextPlayer(this.player.current_player); 
+		_.map(target_siege_ids, (id) => {
+			if (this.stage[id] == enemy_name) {
+				var direction = this.getDirection(cell_id, id); // どの方角か
+				var direction_ids = []; // その方角のid(配列)
+				direction_ids = this.getDirectionIds(id, direction);
+				direction_ids.unshift(id)
+				console.log(direction_ids)
 				
-				_.each(array, (id, index) => {
-					if (this.stage[id] == WHITE) {
+				// 方角のidに自分マスがあったらひっくり返す
+				var turn_over_ids = [];
+				_.some(direction_ids, (id, index) => {
+					if (this.stage[id] == Config.EMPTY) return true; // 空マスが見つかったらひっくり返さない
+					
+					if (this.stage[id] == this.player.current_player) {
 						is_changed = true;
-						var id = array[index - 1];
-						this.stage[id] = WHITE
+						
+						// 囲われた相手マスを自分マスに
+						_.times(index, (index) => {
+							var id = direction_ids[index];
+							this.stage[id] = this.player.current_player;
+						})
+						this.stage[cell_id] = this.player.current_player; // クリックした箇所を自分マスに
+						
+						return true; // 自分マスがあったらそこでループ終了
 					}
+					
 				});
-				
-				console.log(this.stage)
 			}
 		});
+		console.log('--------------------')
 		
 		if (is_changed) {
-			$target.addClass('white')
+			this.render($target);
 		}
 	}
 	
-	render() {
+	render($target) {
+		$('td').removeClass();
+		_.each(this.stage, (value, key) => {
+			$('[data-id="'+ key +'"]').addClass(value);
+		});
 		
+		this.player.current_player = this.player.getNextPlayer(this.player.current_player);
+		this.player.renderPlayer();
 	}
 	
-	getHougaku(cell_id, id) {
-		var hougaku = '';
+	getDirection(cell_id, id) {
+		var direction = '';
 		var start_x = Number(cell_id.split('')[2]);
 		var start_y = Number(cell_id.split('')[0]);
 		var goal_x = Number(id.split('')[2]);
@@ -126,63 +135,57 @@ class Stage {
 			case -1:
 				switch(start_y - goal_y) {
 					case -1:
-						hougaku = 'TOP_LEFT';
+						direction = 'TOP_LEFT';
 						break;
 					case 0:
-						hougaku = 'CENTER_LEFT';
+						direction = 'CENTER_LEFT';
 						break;
 					case 1:
-						hougaku = 'BOTTOM_LEFT';
+						direction = 'BOTTOM_LEFT';
 						break;
 				}
 				break;
 			case 0:
 				switch(start_y - goal_y) {
 					case -1:
-						hougaku = 'TOP_CENTER';
+						direction = 'TOP_CENTER';
 						break;
 					case 0:
-						hougaku = 'CENTER_CENTER';
+						direction = 'CENTER_CENTER';
 						break;
 					case 1:
-						hougaku = 'BOTTOM_CENTER';
+						direction = 'BOTTOM_CENTER';
 						break;
 				}
 				break;
 			case 1:
 				switch(start_y - goal_y) {
 					case -1:
-						hougaku = 'TOP_RIGHT';
+						direction = 'TOP_RIGHT';
 						break;
 					case 0:
-						hougaku = 'CENTER_RIGHT';
+						direction = 'CENTER_RIGHT';
 						break;
 					case 1:
-						hougaku = 'BOTTOM_RIGHT';
+						direction = 'BOTTOM_RIGHT';
 						break;
 				}
 				break;
 		}
 		
-		return hougaku;
+		return direction;
 	}
 	
-	getHougakuIds(id, hougaku) {
+	getDirectionIds(id, direction) {
 		var arr = [];
 		var id_x = Number(id.split('')[2]);
 		var id_y = Number(id.split('')[0]);
 		
-		function getId(num) {
-			while (id_x == 3) {
-				id_x += 1;
-			}
-		}
-		
 		var counter = 0;
-		switch(hougaku) {
+		switch(direction) {
 			case 'TOP_LEFT':
-				if (3 - id_x && 3 - id_y) {
-					counter = Math.min(3 - id_x, 3 - id_y);
+				if ((Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_x && (Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_y) {
+					counter = Math.min((Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_x, (Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_y);
 				}
 				_.times(counter, () => {
 					id_x += 1;
@@ -191,8 +194,8 @@ class Stage {
 				});
 				break;
 			case 'CENTER_LEFT':
-				if (3 - id_x) {
-					counter = 3 - id_x;
+				if ((Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_x) {
+					counter = (Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_x;
 				}
 				_.times(counter, () => {
 					id_x += 1;
@@ -200,8 +203,8 @@ class Stage {
 				});
 				break;
 			case 'BOTTOM_LEFT':
-				if (3 - id_x && id_y) {
-					counter = Math.min(3 - id_x, id_y);
+				if ((Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_x && id_y) {
+					counter = Math.min((Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_x, id_y);
 				}
 				_.times(counter, () => {
 					id_x += 1;
@@ -210,8 +213,8 @@ class Stage {
 				});
 				break;
 			case 'TOP_CENTER':
-				if (3 - id_y) {
-					counter = 3 - id_y;
+				if ((Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_y) {
+					counter = (Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_y;
 				}
 				_.times(counter, () => {
 					id_y += 1;
@@ -231,8 +234,8 @@ class Stage {
 				});
 				break;
 			case 'TOP_RIGHT':
-				if (id_x && 3 - id_y) {
-					counter = Math.min(id_x, 3 - id_y);
+				if (id_x && (Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_y) {
+					counter = Math.min(id_x, (Config.STAGE_CELL_NUM_TO_HORIZONTAL - 1) - id_y);
 				}
 				_.times(counter, () => {
 					id_x -= 1;

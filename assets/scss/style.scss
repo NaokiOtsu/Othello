@@ -17,6 +17,19 @@ body {
 	align-items: center;
 	justify-content: center;
 	
+	.player {
+		position: absolute;
+		top: 140px;
+		left: 50%;
+		width: 200px;
+		margin-left: -100px;
+		padding: 10px 0;
+		text-align: center;
+		color: white;
+		background-color: rgba(0,0,0,0.8);
+		border-radius: 10px;
+	}
+	
 	table {
 		border-top: 1px solid #333;
 		border-left: 1px solid #333;
