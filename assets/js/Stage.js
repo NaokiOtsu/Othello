@@ -53,6 +53,24 @@ class Stage {
 		this.$container.append(stage);
 	}
 	
+	// ターゲットの包囲マス
+	getTargetSiegeIds(cell_x, cell_y) {
+		var target_siege_ids = [];
+		
+		for (var x = -1; x < 2; x++) {
+			for (var y = -1; y < 2; y++) {
+				var num_x = cell_x + x;
+				var num_y = cell_y + y;
+				
+				if (num_x >= 0 && num_x < Config.STAGE_CELL_NUM_TO_HORIZONTAL && num_y >= 0 && num_y < Config.STAGE_CELL_NUM_TO_HORIZONTAL) {
+					target_siege_ids.push(num_y +'-'+ num_x);
+				}
+			}
+		}
+		
+		return target_siege_ids;
+	}
+	
 	click(event) {
 		var $target = $(event.target);
 		var cell_id = $target.data('id') +'';
@@ -65,19 +83,15 @@ class Stage {
 			return false;
 		}
 		
-		var target_siege_ids = []; // クリックしたマスの包囲マス
-		for (var x = -1; x < 2; x++) {
-			for (var y = -1; y < 2; y++) {
-				var num_x = cell_x + x;
-				var num_y = cell_y + y;
-				
-				if (num_x >= 0 && num_x < Config.STAGE_CELL_NUM_TO_HORIZONTAL && num_y >= 0 && num_y < Config.STAGE_CELL_NUM_TO_HORIZONTAL) {
-					target_siege_ids.push(num_y +'-'+ num_x);
-				}
-			}
-		}
+		var target_siege_ids = this.getTargetSiegeIds(cell_x, cell_y); // ターゲットの包囲マス
 		
-		var is_changed = false; // ひっくり返すマスがあるか
+		var is_render = true;
+		this.hoge(target_siege_ids, cell_id, $target, is_render);
+	}
+	
+	hoge(target_siege_ids, cell_id, $target, is_render) {
+		var is_changed = false;
+		
 		var enemy_name = this.player.getNextPlayer(this.player.current_player); 
 		_.map(target_siege_ids, (id) => {
 			if (this.stage[id] == enemy_name) {
@@ -94,12 +108,13 @@ class Stage {
 					if (this.stage[id] == this.player.current_player) {
 						is_changed = true;
 						
-						// 囲われた相手マスを自分マスに
-						_.times(index, (index) => {
-							var id = direction_ids[index];
-							this.stage[id] = this.player.current_player;
-						})
-						this.stage[cell_id] = this.player.current_player; // クリックした箇所を自分マスに
+						if (is_render) {
+							_.times(index, (index) => {
+								var id = direction_ids[index];
+								this.stage[id] = this.player.current_player;
+							})
+							this.stage[cell_id] = this.player.current_player; // クリックした箇所を自分マスに
+						}
 						
 						return true; // 自分マスがあったらそこでループ終了
 					}
@@ -108,9 +123,11 @@ class Stage {
 			}
 		});
 		
-		if (is_changed) {
+		if (is_changed && is_render) {
 			this.render($target);
 		}
+		
+		return is_changed;
 	}
 	
 	render($target) {
@@ -123,6 +140,13 @@ class Stage {
 		
 		this.player.current_player = this.player.getNextPlayer(this.player.current_player);
 		this.player.renderPlayer();
+		
+		this.checkCanClick();
+	}
+	
+	checkCanClick() {
+		var can_click_ids = []; // クリック可能な位置
+		
 	}
 	
 	getDirection(cell_id, id) {

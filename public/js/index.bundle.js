@@ -121,23 +121,14 @@ webpackJsonp([1],[
 				this.player.renderPlayer();
 				this.$container.append(stage);
 			}
+
+			// ターゲットの包囲マス
+
 		}, {
-			key: 'click',
-			value: function click(event) {
-				var _this2 = this;
+			key: 'getTargetSiegeIds',
+			value: function getTargetSiegeIds(cell_x, cell_y) {
+				var target_siege_ids = [];
 
-				var $target = (0, _jquery2.default)(event.target);
-				var cell_id = $target.data('id') + '';
-				var cell_index = $target.data('index');
-				var cell_id_split = cell_id.split('');
-				var cell_x = Number(cell_id_split[2]);
-				var cell_y = Number(cell_id_split[0]);
-
-				if (this.stage[cell_id] != _Config2.default.EMPTY) {
-					return false;
-				}
-
-				var target_siege_ids = []; // クリックしたマスの包囲マス
 				for (var x = -1; x < 2; x++) {
 					for (var y = -1; y < 2; y++) {
 						var num_x = cell_x + x;
@@ -149,7 +140,34 @@ webpackJsonp([1],[
 					}
 				}
 
-				var is_changed = false; // ひっくり返すマスがあるか
+				return target_siege_ids;
+			}
+		}, {
+			key: 'click',
+			value: function click(event) {
+				var $target = (0, _jquery2.default)(event.target);
+				var cell_id = $target.data('id') + '';
+				var cell_index = $target.data('index');
+				var cell_id_split = cell_id.split('');
+				var cell_x = Number(cell_id_split[2]);
+				var cell_y = Number(cell_id_split[0]);
+
+				if (this.stage[cell_id] != _Config2.default.EMPTY) {
+					return false;
+				}
+
+				var target_siege_ids = this.getTargetSiegeIds(cell_x, cell_y); // ターゲットの包囲マス
+
+				var is_render = true;
+				this.hoge(target_siege_ids, cell_id, $target, is_render);
+			}
+		}, {
+			key: 'hoge',
+			value: function hoge(target_siege_ids, cell_id, $target, is_render) {
+				var _this2 = this;
+
+				var is_changed = false;
+
 				var enemy_name = this.player.getNextPlayer(this.player.current_player);
 				_underscore2.default.map(target_siege_ids, function (id) {
 					if (_this2.stage[id] == enemy_name) {
@@ -166,12 +184,13 @@ webpackJsonp([1],[
 							if (_this2.stage[id] == _this2.player.current_player) {
 								is_changed = true;
 
-								// 囲われた相手マスを自分マスに
-								_underscore2.default.times(index, function (index) {
-									var id = direction_ids[index];
-									_this2.stage[id] = _this2.player.current_player;
-								});
-								_this2.stage[cell_id] = _this2.player.current_player; // クリックした箇所を自分マスに
+								if (is_render) {
+									_underscore2.default.times(index, function (index) {
+										var id = direction_ids[index];
+										_this2.stage[id] = _this2.player.current_player;
+									});
+									_this2.stage[cell_id] = _this2.player.current_player; // クリックした箇所を自分マスに
+								}
 
 								return true; // 自分マスがあったらそこでループ終了
 							}
@@ -179,9 +198,11 @@ webpackJsonp([1],[
 					}
 				});
 
-				if (is_changed) {
+				if (is_changed && is_render) {
 					this.render($target);
 				}
+
+				return is_changed;
 			}
 		}, {
 			key: 'render',
@@ -195,6 +216,13 @@ webpackJsonp([1],[
 
 				this.player.current_player = this.player.getNextPlayer(this.player.current_player);
 				this.player.renderPlayer();
+
+				this.checkCanClick();
+			}
+		}, {
+			key: 'checkCanClick',
+			value: function checkCanClick() {
+				var can_click_ids = []; // クリック可能な位置
 			}
 		}, {
 			key: 'getDirection',
